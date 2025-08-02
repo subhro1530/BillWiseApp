@@ -1,3 +1,4 @@
+// screens/HomeScreen.js
 import React, { useState } from "react";
 import {
   View,
@@ -6,18 +7,23 @@ import {
   Button,
   StyleSheet,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
 import moment from "moment";
 
 export default function HomeScreen() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const navigation = useNavigation();
 
   const handleSubmit = async () => {
+    if (!name.trim() || !amount.trim()) {
+      alert("Please enter both name and amount");
+      return;
+    }
+
     const newPayment = {
       name,
       amount,
@@ -37,66 +43,80 @@ export default function HomeScreen() {
       setNote("");
     } catch (error) {
       console.error("Error saving payment:", error);
+      alert("Failed to save payment, please try again.");
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add Payment</Text>
-      <TextInput
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Amount"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Note (Optional)"
-        value={note}
-        onChangeText={setNote}
-        style={styles.input}
-      />
-      <Button title="Save Payment" onPress={handleSubmit} />
-      <View style={{ marginTop: 20 }}>
-        <Button
-          title="View Payments"
-          onPress={() => navigation.navigate("Payments")}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1 }}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Add Payment</Text>
+        <TextInput
+          placeholder="Name"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          placeholderTextColor="#aaa"
         />
-        <Button
-          title="Student List"
-          onPress={() => navigation.navigate("Students")}
+        <TextInput
+          placeholder="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+          style={styles.input}
+          placeholderTextColor="#aaa"
         />
-      </View>
-    </ScrollView>
+        <TextInput
+          placeholder="Note (Optional)"
+          value={note}
+          onChangeText={setNote}
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+        <View style={styles.buttonWrapper}>
+          <Button title="Save Payment" onPress={handleSubmit} color="#00ffff" />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingTop: 60,
+    padding: 24,
+    paddingTop: 48,
     backgroundColor: "#111",
     minHeight: "100%",
   },
   title: {
     color: "#fff",
-    fontSize: 22,
-    marginBottom: 20,
+    fontSize: 24,
+    marginBottom: 28,
     fontWeight: "bold",
+    alignSelf: "center",
   },
   input: {
     backgroundColor: "#222",
     color: "#fff",
-    marginBottom: 15,
-    padding: 12,
-    borderRadius: 8,
-    borderColor: "#444",
+    marginBottom: 18,
+    padding: 14,
+    borderRadius: 10,
+    borderColor: "#3399cc",
     borderWidth: 1,
+    fontSize: 16,
+  },
+  buttonWrapper: {
+    marginTop: 16,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+    elevation: 2,
+    shadowColor: "#00ffff",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
   },
 });

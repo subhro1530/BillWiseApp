@@ -41,9 +41,10 @@ export default function SignupScreen({ navigation }) {
     if (email && password) {
       try {
         const user = { email, password };
-        await AsyncStorage.setItem("user", JSON.stringify(user));
+        await AsyncStorage.setItem("userCredentials", JSON.stringify(user));
         showNotification("Account created. You can now log in.");
         setTimeout(() => navigation.replace("Login"), 1500);
+        // Or navigate.replace("MainTabs") to auto-login after signup
       } catch (error) {
         showNotification("Failed to save user data.");
       }
@@ -65,6 +66,7 @@ export default function SignupScreen({ navigation }) {
           style={styles.input}
           value={email}
           onChangeText={setEmail}
+          autoCapitalize="none"
         />
         <TextInput
           placeholder="Password"

@@ -47,7 +47,7 @@ export default function LoginScreen({ navigation }) {
       password === storedCredentials.password
     ) {
       showToast("Login successful", "success");
-      setTimeout(() => navigation.replace("Home"), 1000);
+      setTimeout(() => navigation.replace("MainTabs"), 1000); // Replace with MainTabs instead of Home
     } else {
       showToast("Invalid email or password");
     }
