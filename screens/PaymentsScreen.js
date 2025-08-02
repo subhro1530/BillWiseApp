@@ -5,43 +5,50 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, Feather } from "@expo/vector-icons";
-
-function daysBetween(a, b) {
-  return Math.floor((b - a) / (1000 * 60 * 60 * 24));
-}
 
 export default function PaymentsScreen() {
   const [people, setPeople] = useState([]);
   const [paidOpen, setPaidOpen] = useState(false);
   const [unpaidOpen, setUnpaidOpen] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const getPeople = async () => {
-      const data = await AsyncStorage.getItem("people");
-      setPeople(data ? JSON.parse(data) : []);
-    };
-    getPeople();
-  }, []);
-
-  const today = new Date();
-
-  // Determine who is due
-  const getStatus = (person) => {
-    let lastPaid = person.lastPaid
-      ? new Date(person.lastPaid)
-      : new Date(person.createdAt);
-    const daysElapsed = daysBetween(lastPaid, today);
-    if (daysElapsed >= person.duration) return "unpaid";
-    return "paid";
+  const loadPeople = async () => {
+    const data = await AsyncStorage.getItem("people");
+    setPeople(data ? JSON.parse(data) : []);
   };
 
+  useEffect(() => {
+    loadPeople();
+  }, []);
+
+  // Pull-to-refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPeople();
+    setRefreshing(false);
+  };
+
+  // Use the 'paid' boolean saved in the person object to determine status
+  const getStatus = (person) => {
+    // Consider false or undefined as unpaid by default
+    return person.paid ? "paid" : "unpaid";
+  };
+
+  // Mark as paid for a person by index
   const markPaid = async (idx) => {
     const updated = people.slice();
-    updated[idx].lastPaid = today.toISOString();
+    updated[idx].paid = true; // mark paid
+    setPeople(updated);
+    await AsyncStorage.setItem("people", JSON.stringify(updated));
+  };
+
+  // Mark as unpaid
+  const markUnpaid = async (idx) => {
+    const updated = people.slice();
+    updated[idx].paid = false; // mark unpaid
     setPeople(updated);
     await AsyncStorage.setItem("people", JSON.stringify(updated));
   };
@@ -94,7 +101,7 @@ export default function PaymentsScreen() {
         <Ionicons name="wallet" size={20} color="#00ffff" />
         <Text style={styles.heading}>Payment Status</Text>
         <Text style={styles.subtitle}>
-          Track paid/unpaid reminders per the chosen cycle. Tap to mark as paid.
+          Track paid/unpaid reminders. Tap to toggle status.
         </Text>
       </View>
       {sections.map((sec) => (
@@ -103,7 +110,9 @@ export default function PaymentsScreen() {
           {sec.open && (
             <FlatList
               data={sec.data}
-              keyExtractor={(_, i) => i.toString()}
+              keyExtractor={(item) => item.idx.toString()}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               renderItem={({ item }) => (
                 <View
                   style={[
@@ -134,6 +143,8 @@ export default function PaymentsScreen() {
                       <Text style={styles.lastPaid}>Never paid</Text>
                     )}
                   </View>
+
+                  {/* Toggle pay/unpay button */}
                   {sec.title === "Not Paid" && (
                     <TouchableOpacity
                       style={styles.payBtn}
@@ -156,6 +167,25 @@ export default function PaymentsScreen() {
                       </Text>
                     </TouchableOpacity>
                   )}
+                  {sec.title === "Paid" && (
+                    <TouchableOpacity
+                      style={styles.payBtn}
+                      onPress={() => markUnpaid(item.idx)}
+                      activeOpacity={0.89}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#ff4d4d" />
+                      <Text
+                        style={{
+                          color: "#ff4d4d",
+                          marginLeft: 4,
+                          fontWeight: "700",
+                        }}
+                      >
+                        Mark Unpaid
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
                   {sec.title === "Not Paid" && (
                     <Ionicons
                       name="close-circle"

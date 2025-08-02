@@ -44,6 +44,22 @@ export default function PeopleScreen() {
     );
   };
 
+  const togglePaidStatus = async (id) => {
+    try {
+      const updated = people.map((p) => {
+        if (p.id === id) {
+          return { ...p, paid: !p.paid }; // Toggle the paid status (default false if undefined)
+        }
+        return p;
+      });
+      setPeople(updated);
+      await AsyncStorage.setItem("people", JSON.stringify(updated));
+    } catch (error) {
+      console.error("Error toggling paid status:", error);
+      Alert.alert("Error", "Unable to update paid status, please try again.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -51,7 +67,8 @@ export default function PeopleScreen() {
         <Text style={styles.heading}>Payment Reminders</Text>
       </View>
       <Text style={styles.subtext}>
-        People you have added reminders for. Delete if no longer needed.
+        People you have added reminders for. Delete if no longer needed. Tap the
+        check or cross to mark Paid/Unpaid.
       </Text>
       <FlatList
         data={people}
@@ -76,6 +93,17 @@ export default function PeopleScreen() {
                 Added on {new Date(item.createdAt).toLocaleDateString()}
               </Text>
             </View>
+            {/* Paid status toggle button */}
+            <TouchableOpacity
+              style={styles.paidBtn}
+              onPress={() => togglePaidStatus(item.id)}
+            >
+              {item.paid ? (
+                <Ionicons name="checkmark-circle" size={28} color="#1de9b6" />
+              ) : (
+                <Ionicons name="close-circle" size={28} color="#ff4d4d" />
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.deleteBtn}
               onPress={() => deletePerson(item.id)}
@@ -147,6 +175,9 @@ const styles = StyleSheet.create({
   created: {
     color: "#4adfff",
     fontSize: 11,
+  },
+  paidBtn: {
+    marginLeft: 12,
   },
   deleteBtn: {
     marginLeft: 16,
