@@ -2,13 +2,15 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 
 import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
 import HomeScreen from "./screens/HomeScreen";
-import PaymentListScreen from "./screens/PaymentListScreen";
-import StudentListScreen from "./screens/StudentListScreen";
+import PaymentsScreen from "./screens/PaymentsScreen";
+import PeopleScreen from "./screens/PeopleScreen";
+import InsightsScreen from "./screens/InsightsScreen";
+import SettingsScreen from "./screens/SettingsScreen.js";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -18,34 +20,53 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarStyle: {
           backgroundColor: "#101116",
           borderTopWidth: 0,
-          height: 62,
-          elevation: 10,
+          height: 56,
+          elevation: 14,
+        },
+        tabBarLabelStyle: {
+          fontWeight: "600",
+          fontSize: 12,
         },
         tabBarActiveTintColor: "#00ffff",
         tabBarInactiveTintColor: "#bbb",
-        tabBarLabelStyle: {
-          fontWeight: "bold",
-          fontSize: 13,
-          marginBottom: 4,
-        },
-        tabBarIcon: ({ color, focused }) => {
-          let iconName = "";
-          if (route.name === "Home")
-            iconName = focused ? "home" : "home-outline";
-          else if (route.name === "Payments")
-            iconName = focused ? "wallet" : "wallet-outline";
-          else if (route.name === "Students")
-            iconName = focused ? "people" : "people-outline";
-          return <Ionicons name={iconName} size={26} color={color} />;
+        tabBarIcon: ({ color, focused, size }) => {
+          let iconName;
+          size = 22;
+          switch (route.name) {
+            case "Home":
+              iconName = focused ? "add-circle" : "add-circle-outline";
+              return <Ionicons name={iconName} color={color} size={size} />;
+            case "Payments":
+              iconName = focused ? "wallet" : "wallet-outline";
+              return <Ionicons name={iconName} color={color} size={size} />;
+            case "People":
+              iconName = focused ? "people" : "people-outline";
+              return <Ionicons name={iconName} color={color} size={size} />;
+            case "Insights":
+              return (
+                <MaterialCommunityIcons
+                  name={focused ? "chart-bar" : "chart-bar"}
+                  color={color}
+                  size={size}
+                />
+              );
+            case "Settings":
+              return <Feather name="settings" color={color} size={size} />;
+            default:
+              return null;
+          }
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Payments" component={PaymentListScreen} />
-      <Tab.Screen name="Students" component={StudentListScreen} />
+      <Tab.Screen name="People" component={PeopleScreen} />
+      <Tab.Screen name="Payments" component={PaymentsScreen} />
+      <Tab.Screen name="Insights" component={InsightsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

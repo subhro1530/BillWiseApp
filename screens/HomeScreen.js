@@ -1,49 +1,69 @@
-// screens/HomeScreen.js
 import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   StyleSheet,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import moment from "moment";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function HomeScreen() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [duration, setDuration] = useState(30); // default: 30 days
+  const [showPicker, setShowPicker] = useState(false);
+  const [notifierAnim] = useState(new Animated.Value(-90));
+  const [notif, setNotif] = useState("");
+
+  const showNotification = (msg) => {
+    setNotif(msg);
+    Animated.timing(notifierAnim, {
+      toValue: 0,
+      duration: 290,
+      useNativeDriver: true,
+    }).start(() => {
+      setTimeout(() => {
+        Animated.timing(notifierAnim, {
+          toValue: -90,
+          duration: 290,
+          useNativeDriver: true,
+        }).start();
+      }, 1750);
+    });
+  };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !amount.trim()) {
-      alert("Please enter both name and amount");
+    if (!name.trim() || !amount.trim() || duration < 1) {
+      showNotification("Fill name, amount, and duration (at least 1 day)");
       return;
     }
-
-    const newPayment = {
+    const newPerson = {
       name,
       amount,
       note,
-      date: moment().format("YYYY-MM-DD"),
-      time: moment().format("HH:mm"),
+      duration, // days
+      lastPaid: null, // will update when marked paid
+      createdAt: new Date().toISOString(),
     };
-
     try {
-      const existing = await AsyncStorage.getItem("payments");
-      const payments = existing ? JSON.parse(existing) : [];
-      payments.push(newPayment);
-      await AsyncStorage.setItem("payments", JSON.stringify(payments));
-      alert("Payment saved!");
+      const data = await AsyncStorage.getItem("people");
+      const people = data ? JSON.parse(data) : [];
+      people.push(newPerson);
+      await AsyncStorage.setItem("people", JSON.stringify(people));
+      showNotification("Reminder added!");
       setName("");
       setAmount("");
       setNote("");
-    } catch (error) {
-      console.error("Error saving payment:", error);
-      alert("Failed to save payment, please try again.");
+      setDuration(30);
+    } catch (e) {
+      showNotification("Error saving reminder");
     }
   };
 
@@ -52,8 +72,17 @@ export default function HomeScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1 }}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Add Payment</Text>
+      <View style={styles.header}>
+        <Text style={styles.heading}>
+          <Ionicons name="add-circle" size={20} color="#00ffff" />
+          {"  "}Set Payment Reminder
+        </Text>
+        <Text style={styles.subtitle}>
+          Add a person you expect payments from, set a custom cycle (monthly,
+          weekly, etc).
+        </Text>
+      </View>
+      <View style={styles.form}>
         <TextInput
           placeholder="Name"
           value={name}
@@ -70,53 +99,140 @@ export default function HomeScreen() {
           placeholderTextColor="#aaa"
         />
         <TextInput
-          placeholder="Note (Optional)"
+          placeholder="Note (optional)"
           value={note}
           onChangeText={setNote}
           style={styles.input}
           placeholderTextColor="#aaa"
         />
-        <View style={styles.buttonWrapper}>
-          <Button title="Save Payment" onPress={handleSubmit} color="#00ffff" />
+        <View style={styles.durationRow}>
+          <Text style={styles.durLabel}>Remind every</Text>
+          <TextInput
+            style={styles.durInput}
+            keyboardType="numeric"
+            value={duration.toString()}
+            onChangeText={(v) => setDuration(Number(v.replace(/[^0-9]/g, "")))}
+            maxLength={3}
+          />
+          <Text style={styles.durLabel}>days</Text>
         </View>
-      </ScrollView>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSubmit}
+          activeOpacity={0.89}
+        >
+          <Ionicons name="alarm" size={16} color="#101116" />
+          <Text style={styles.buttonText}>ADD REMINDER</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Animated.View
+        style={[
+          styles.notification,
+          { transform: [{ translateY: notifierAnim }] },
+        ]}
+      >
+        <Text style={styles.notifText}>{notif}</Text>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingTop: 48,
-    backgroundColor: "#111",
-    minHeight: "100%",
+  header: {
+    paddingTop: 44,
+    paddingBottom: 18,
+    paddingHorizontal: 24,
+    backgroundColor: "#121219",
   },
-  title: {
-    color: "#fff",
-    fontSize: 24,
-    marginBottom: 28,
+  heading: {
+    color: "#00ffff",
     fontWeight: "bold",
-    alignSelf: "center",
+    fontSize: 22,
+    marginBottom: 2,
+  },
+  subtitle: {
+    color: "#7acece",
+    fontSize: 13,
+    marginBottom: 2,
+    fontStyle: "italic",
+  },
+  form: {
+    backgroundColor: "#181822",
+    padding: 24,
+    borderRadius: 17,
+    margin: 18,
+    elevation: 2,
   },
   input: {
-    backgroundColor: "#222",
+    backgroundColor: "#222d34",
     color: "#fff",
-    marginBottom: 18,
-    padding: 14,
-    borderRadius: 10,
-    borderColor: "#3399cc",
-    borderWidth: 1,
-    fontSize: 16,
-  },
-  buttonWrapper: {
-    marginTop: 16,
+    marginBottom: 15,
+    padding: 12,
     borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "transparent",
-    elevation: 2,
+    fontSize: 15,
+    borderColor: "#363d40",
+    borderWidth: 1,
+  },
+  durationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  durLabel: {
+    color: "#bbb",
+    fontSize: 15,
+    marginHorizontal: 5,
+  },
+  durInput: {
+    width: 48,
+    height: 36,
+    backgroundColor: "#222d34",
+    color: "#00ffff",
+    fontWeight: "bold",
+    borderRadius: 7,
+    textAlign: "center",
+    marginHorizontal: 3,
+    fontSize: 17,
+    borderColor: "#00ffff55",
+    borderWidth: 1,
+  },
+  button: {
+    marginTop: 6,
+    backgroundColor: "#00ffff",
+    borderRadius: 8,
+    paddingVertical: 13,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     shadowColor: "#00ffff",
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.22,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
+    shadowRadius: 6,
+  },
+  buttonText: {
+    color: "#101116",
+    fontWeight: "800",
+    fontSize: 15,
+    marginLeft: 8,
+    letterSpacing: 1,
+  },
+  notification: {
+    position: "absolute",
+    top: 20,
+    left: 32,
+    right: 32,
+    backgroundColor: "#101116ef",
+    borderColor: "#00ffff",
+    padding: 12,
+    alignItems: "center",
+    borderRadius: 10,
+    zIndex: 99,
+    borderWidth: 1,
+  },
+  notifText: {
+    color: "#00ffff",
+    fontWeight: "600",
+    fontSize: 15,
   },
 });
