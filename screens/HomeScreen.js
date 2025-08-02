@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,231 +8,283 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useHeaderHeight } from "@react-navigation/elements";
 
 export default function HomeScreen() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [duration, setDuration] = useState(30); // default: 30 days
-  const [showPicker, setShowPicker] = useState(false);
-  const [notifierAnim] = useState(new Animated.Value(-90));
-  const [notif, setNotif] = useState("");
+  const [interval, setInterval] = useState("30");
+  const [startDate, setStartDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const notifAnim = useRef(new Animated.Value(-100)).current;
+  const [notifMessage, setNotifMessage] = useState("");
+  const headerHeight = useHeaderHeight();
 
   const showNotification = (msg) => {
-    setNotif(msg);
-    Animated.timing(notifierAnim, {
+    setNotifMessage(msg);
+    Animated.timing(notifAnim, {
       toValue: 0,
-      duration: 290,
+      duration: 300,
       useNativeDriver: true,
     }).start(() => {
       setTimeout(() => {
-        Animated.timing(notifierAnim, {
-          toValue: -90,
-          duration: 290,
+        Animated.timing(notifAnim, {
+          toValue: -100,
+          duration: 300,
           useNativeDriver: true,
-        }).start();
-      }, 1750);
+        }).start(() => {
+          setNotifMessage(""); // Clear message after hide to fully hide the notification
+        });
+      }, 1700);
     });
   };
 
-  const handleSubmit = async () => {
-    if (!name.trim() || !amount.trim() || duration < 1) {
-      showNotification("Fill name, amount, and duration (at least 1 day)");
+  const onChangeDate = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) setStartDate(selectedDate);
+  };
+
+  const handleSave = async () => {
+    if (
+      !name.trim() ||
+      !amount.trim() ||
+      isNaN(Number(amount)) ||
+      Number(amount) <= 0
+    ) {
+      showNotification("Please enter valid Name and Amount");
       return;
     }
-    const newPerson = {
-      name,
-      amount,
-      note,
-      duration, // days
-      lastPaid: null, // will update when marked paid
-      createdAt: new Date().toISOString(),
-    };
+    if (!interval.trim() || isNaN(Number(interval)) || Number(interval) < 1) {
+      showNotification("Interval must be a positive number");
+      return;
+    }
     try {
-      const data = await AsyncStorage.getItem("people");
-      const people = data ? JSON.parse(data) : [];
+      const storedPeople = await AsyncStorage.getItem("people");
+      const people = storedPeople ? JSON.parse(storedPeople) : [];
+      const newPerson = {
+        id: Date.now().toString(),
+        name,
+        amount: Number(amount),
+        note,
+        interval: Number(interval),
+        startDate: startDate.toISOString(),
+        lastPaid: null,
+        createdAt: new Date().toISOString(),
+      };
       people.push(newPerson);
       await AsyncStorage.setItem("people", JSON.stringify(people));
-      showNotification("Reminder added!");
+      showNotification("Reminder added successfully!");
       setName("");
       setAmount("");
       setNote("");
-      setDuration(30);
-    } catch (e) {
-      showNotification("Error saving reminder");
+      setInterval("30");
+      setStartDate(new Date());
+    } catch (error) {
+      showNotification("Failed to save data, try again.");
+      console.error("Save error:", error);
     }
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1 }}
+      style={styles.flexContainer}
+      keyboardVerticalOffset={headerHeight + 20}
     >
-      <View style={styles.header}>
-        <Text style={styles.heading}>
-          <Ionicons name="add-circle" size={20} color="#00ffff" />
-          {"  "}Set Payment Reminder
-        </Text>
-        <Text style={styles.subtitle}>
-          Add a person you expect payments from, set a custom cycle (monthly,
-          weekly, etc).
-        </Text>
-      </View>
-      <View style={styles.form}>
-        <TextInput
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-        <TextInput
-          placeholder="Amount"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-        <TextInput
-          placeholder="Note (optional)"
-          value={note}
-          onChangeText={setNote}
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-        <View style={styles.durationRow}>
-          <Text style={styles.durLabel}>Remind every</Text>
-          <TextInput
-            style={styles.durInput}
-            keyboardType="numeric"
-            value={duration.toString()}
-            onChangeText={(v) => setDuration(Number(v.replace(/[^0-9]/g, "")))}
-            maxLength={3}
-          />
-          <Text style={styles.durLabel}>days</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSubmit}
-          activeOpacity={0.89}
-        >
-          <Ionicons name="alarm" size={16} color="#101116" />
-          <Text style={styles.buttonText}>ADD REMINDER</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Animated.View
-        style={[
-          styles.notification,
-          { transform: [{ translateY: notifierAnim }] },
-        ]}
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingTop: 12 }]}
       >
-        <Text style={styles.notifText}>{notif}</Text>
-      </Animated.View>
+        <Text style={styles.title}>Add Payment Reminder</Text>
+        <Text style={styles.infoLine}>
+          Enter details of the person you want to receive payment from, select
+          the start date, and set the reminder interval in days.
+        </Text>
+        <View style={styles.inputGroup}>
+          <TextInput
+            placeholder="Name"
+            placeholderTextColor="#7aa1b7"
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+            autoCapitalize="words"
+          />
+          <TextInput
+            placeholder="Amount (₹)"
+            placeholderTextColor="#7aa1b7"
+            value={amount}
+            onChangeText={setAmount}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            placeholder="Note (optional)"
+            placeholderTextColor="#7aa1b7"
+            value={note}
+            onChangeText={setNote}
+            style={styles.input}
+          />
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={styles.datePickerButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar" size={18} color="#00ffff" />
+            <Text style={styles.datePickerText}>
+              Start Date: {startDate.toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+          <TextInput
+            placeholder="Interval (days)"
+            placeholderTextColor="#7aa1b7"
+            value={interval}
+            onChangeText={setInterval}
+            style={styles.input}
+            keyboardType="numeric"
+            maxLength={4}
+          />
+        </View>
+        {showDatePicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="date"
+            display="calendar"
+            onChange={onChangeDate}
+            maximumDate={new Date(2100, 11, 31)}
+            minimumDate={new Date(2000, 0, 1)}
+          />
+        )}
+        <TouchableOpacity
+          onPress={handleSave}
+          activeOpacity={0.8}
+          style={styles.saveButton}
+        >
+          <Ionicons name="alarm" size={20} color="#101116" />
+          <Text style={styles.saveButtonText}>Set Reminder</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Only render notification when there is a message */}
+      {notifMessage !== "" && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.notification,
+            {
+              transform: [{ translateY: notifAnim }],
+              top: headerHeight + 8,
+            },
+          ]}
+        >
+          <Text style={styles.notificationText}>{notifMessage}</Text>
+        </Animated.View>
+      )}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingTop: 44,
-    paddingBottom: 18,
-    paddingHorizontal: 24,
-    backgroundColor: "#121219",
+  flexContainer: {
+    flex: 1,
+    backgroundColor: "#0d1117",
   },
-  heading: {
+  container: {
+    paddingVertical: 40,
+    paddingHorizontal: 28,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "700",
     color: "#00ffff",
-    fontWeight: "bold",
-    fontSize: 22,
-    marginBottom: 2,
+    marginBottom: 8,
+    letterSpacing: 1,
   },
-  subtitle: {
-    color: "#7acece",
-    fontSize: 13,
-    marginBottom: 2,
+  infoLine: {
+    color: "#9ee7f0",
+    fontSize: 14,
     fontStyle: "italic",
+    marginBottom: 30,
   },
-  form: {
-    backgroundColor: "#181822",
-    padding: 24,
-    borderRadius: 17,
-    margin: 18,
-    elevation: 2,
+  inputGroup: {
+    marginBottom: 24,
   },
   input: {
-    backgroundColor: "#222d34",
-    color: "#fff",
-    marginBottom: 15,
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 15,
-    borderColor: "#363d40",
+    backgroundColor: "#15202b",
+    color: "#d0e8f2",
+    fontSize: 17,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderColor: "#0e639c",
     borderWidth: 1,
+    shadowColor: "#00ffff",
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 4,
+    shadowOpacity: 0.25,
   },
-  durationRow: {
+  datePickerButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
-  },
-  durLabel: {
-    color: "#bbb",
-    fontSize: 15,
-    marginHorizontal: 5,
-  },
-  durInput: {
-    width: 48,
-    height: 36,
-    backgroundColor: "#222d34",
-    color: "#00ffff",
-    fontWeight: "bold",
-    borderRadius: 7,
-    textAlign: "center",
-    marginHorizontal: 3,
-    fontSize: 17,
-    borderColor: "#00ffff55",
+    backgroundColor: "#15202b",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderColor: "#0e639c",
     borderWidth: 1,
   },
-  button: {
-    marginTop: 6,
+  datePickerText: {
+    color: "#00ffff",
+    fontWeight: "600",
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  saveButton: {
     backgroundColor: "#00ffff",
-    borderRadius: 8,
-    paddingVertical: 13,
-    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#00ffff",
-    shadowOpacity: 0.22,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 5 },
+    shadowRadius: 10,
+    shadowOpacity: 0.35,
   },
-  buttonText: {
-    color: "#101116",
+  saveButtonText: {
     fontWeight: "800",
-    fontSize: 15,
-    marginLeft: 8,
-    letterSpacing: 1,
+    fontSize: 16,
+    color: "#101116",
+    marginLeft: 10,
+    letterSpacing: 2,
   },
   notification: {
     position: "absolute",
-    top: 20,
-    left: 32,
-    right: 32,
-    backgroundColor: "#101116ef",
-    borderColor: "#00ffff",
-    padding: 12,
+    left: 20,
+    right: 20,
+    height: 50,
+    backgroundColor: "#002f33cc",
+    borderRadius: 12,
+    justifyContent: "center",
     alignItems: "center",
-    borderRadius: 10,
-    zIndex: 99,
     borderWidth: 1,
+    borderColor: "#00ffffcc",
+    shadowColor: "#00ffff",
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 8,
+    shadowOpacity: 0.6,
+    zIndex: 9999,
   },
-  notifText: {
+  notificationText: {
     color: "#00ffff",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: 16,
   },
 });

@@ -1,85 +1,84 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   FlatList,
+  TouchableOpacity,
   StyleSheet,
   Alert,
-  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function PeopleScreen() {
   const [people, setPeople] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
 
   const loadPeople = async () => {
     const data = await AsyncStorage.getItem("people");
     setPeople(data ? JSON.parse(data) : []);
   };
 
-  useEffect(() => {
-    loadPeople();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadPeople();
+    }, [])
+  );
 
-  const deletePerson = (idx) => {
-    Alert.alert("Delete Reminder", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        onPress: async () => {
-          const updated = people.slice();
-          updated.splice(idx, 1);
-          setPeople(updated);
-          await AsyncStorage.setItem("people", JSON.stringify(updated));
+  const deletePerson = (id) => {
+    Alert.alert(
+      "Delete Reminder",
+      "Are you sure you want to delete this reminder?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const updated = people.filter((p) => p.id !== id);
+            setPeople(updated);
+            await AsyncStorage.setItem("people", JSON.stringify(updated));
+          },
         },
-        style: "destructive",
-      },
-    ]);
+      ]
+    );
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#161822" }}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.heading}>
-          <Ionicons name="people-outline" size={20} color="#00ffff" /> Reminders
-        </Text>
-        <Text style={styles.subtitle}>
-          Each person below is set up for a recurring payment reminder.
-        </Text>
+        <Ionicons name="people-outline" size={20} color="#00ffff" />
+        <Text style={styles.heading}>Payment Reminders</Text>
       </View>
+      <Text style={styles.subtext}>
+        People you have added reminders for. Delete if no longer needed.
+      </Text>
       <FlatList
         data={people}
-        onRefresh={() => {
-          setRefreshing(true);
-          loadPeople().then(() => setRefreshing(false));
-        }}
-        refreshing={refreshing}
-        keyExtractor={(_, i) => i.toString()}
-        contentContainerStyle={styles.listContainer}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 24 }}
         ListEmptyComponent={
-          <Text style={styles.empty}>No reminders yet. Add from Home.</Text>
+          <Text style={styles.emptyText}>
+            No reminders yet. Add from Home tab.
+          </Text>
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.meta}>
+              <Text style={styles.details}>
                 ₹{item.amount} every {item.duration} days
               </Text>
               {item.note ? (
                 <Text style={styles.note}>"{item.note}"</Text>
               ) : null}
-              <Text style={styles.added}>
-                Added: {new Date(item.createdAt).toDateString()}
+              <Text style={styles.created}>
+                Added on {new Date(item.createdAt).toLocaleDateString()}
               </Text>
             </View>
             <TouchableOpacity
               style={styles.deleteBtn}
-              onPress={() => deletePerson(index)}
+              onPress={() => deletePerson(item.id)}
             >
               <Feather name="trash-2" size={20} color="#ff4d4d" />
             </TouchableOpacity>
@@ -91,28 +90,64 @@ export default function PeopleScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingTop: 36, paddingBottom: 10, paddingHorizontal: 22 },
-  heading: { color: "#00ffff", fontWeight: "bold", fontSize: 20 },
-  subtitle: {
+  container: {
+    flex: 1,
+    backgroundColor: "#161822",
+    paddingTop: 36,
+    paddingHorizontal: 20,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  heading: {
+    color: "#00ffff",
+    fontWeight: "bold",
+    fontSize: 20,
+    marginLeft: 6,
+  },
+  subtext: {
     color: "#87dffd",
     fontSize: 13,
-    marginBottom: 4,
+    marginBottom: 12,
     fontStyle: "italic",
+    maxWidth: "90%",
   },
-  listContainer: { padding: 16 },
+  emptyText: {
+    marginTop: 36,
+    color: "#aaa",
+    fontSize: 16,
+    textAlign: "center",
+  },
   card: {
-    padding: 18,
     backgroundColor: "#212c3a",
+    padding: 18,
     borderRadius: 13,
-    marginBottom: 13,
+    marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
     elevation: 2,
   },
-  name: { color: "#fff", fontWeight: "bold", fontSize: 17, marginBottom: 4 },
-  meta: { color: "#39ecf7", fontSize: 14 },
-  note: { color: "#bbb", fontStyle: "italic", marginVertical: 2 },
-  added: { color: "#4adfff", fontSize: 11 },
+  name: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 17,
+    marginBottom: 4,
+  },
+  details: {
+    color: "#39ecf7",
+    fontSize: 14,
+  },
+  note: {
+    color: "#bbb",
+    fontStyle: "italic",
+    marginVertical: 2,
+  },
+  created: {
+    color: "#4adfff",
+    fontSize: 11,
+  },
   deleteBtn: {
     marginLeft: 16,
     backgroundColor: "#191b30",
@@ -121,5 +156,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#25193f",
   },
-  empty: { color: "#aaa", textAlign: "center", marginTop: 32, fontSize: 16 },
 });

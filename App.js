@@ -10,7 +10,7 @@ import HomeScreen from "./screens/HomeScreen";
 import PaymentsScreen from "./screens/PaymentsScreen";
 import PeopleScreen from "./screens/PeopleScreen";
 import InsightsScreen from "./screens/InsightsScreen";
-import SettingsScreen from "./screens/SettingsScreen.js";
+import SettingsScreen from "./screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -19,8 +19,10 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarShowLabel: true,
+        headerShown: true, // Show header on all tabs
+        headerStyle: { backgroundColor: "#00ffff" }, // Cyan header
+        headerTintColor: "#101116", // Dark title/icons for contrast
+        headerTitleStyle: { fontWeight: "bold" },
         tabBarStyle: {
           backgroundColor: "#101116",
           borderTopWidth: 0,
@@ -33,23 +35,36 @@ function MainTabs() {
         },
         tabBarActiveTintColor: "#00ffff",
         tabBarInactiveTintColor: "#bbb",
-        tabBarIcon: ({ color, focused, size }) => {
-          let iconName;
-          size = 22;
+        tabBarIcon: ({ color, size = 22, focused }) => {
           switch (route.name) {
             case "Home":
-              iconName = focused ? "add-circle" : "add-circle-outline";
-              return <Ionicons name={iconName} color={color} size={size} />;
+              return (
+                <Ionicons
+                  name={focused ? "add-circle" : "add-circle-outline"}
+                  color={color}
+                  size={size}
+                />
+              );
             case "Payments":
-              iconName = focused ? "wallet" : "wallet-outline";
-              return <Ionicons name={iconName} color={color} size={size} />;
+              return (
+                <Ionicons
+                  name={focused ? "wallet" : "wallet-outline"}
+                  color={color}
+                  size={size}
+                />
+              );
             case "People":
-              iconName = focused ? "people" : "people-outline";
-              return <Ionicons name={iconName} color={color} size={size} />;
+              return (
+                <Ionicons
+                  name={focused ? "people" : "people-outline"}
+                  color={color}
+                  size={size}
+                />
+              );
             case "Insights":
               return (
                 <MaterialCommunityIcons
-                  name={focused ? "chart-bar" : "chart-bar"}
+                  name="chart-bar"
                   color={color}
                   size={size}
                 />
@@ -76,10 +91,25 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName="Login"
-        screenOptions={{ headerShown: false }}
+        // Default cyan header for stack screens
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: "#00ffff" },
+          // headerTintColor: "#101116",
+          headerTitleStyle: { fontWeight: "bold" },
+        }}
       >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
+        {/* Hide header on Login and Signup if desired */}
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Signup"
+          component={SignupScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="MainTabs" component={MainTabs} />
       </Stack.Navigator>
     </NavigationContainer>
